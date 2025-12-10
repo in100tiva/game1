@@ -57,48 +57,108 @@ class GameScene extends Phaser.Scene {
      * - this.load.tilemapTiledJSON('key', 'path') - Tilemap
      */
     preload() {
-        // Exibe mensagem de carregamento
-        const loadingText = this.add.text(
-            this.cameras.main.centerX,
-            this.cameras.main.centerY,
-            'Gerando sprites...',
-            { fontSize: '20px', color: '#4ecca3' }
-        );
-        loadingText.setOrigin(0.5);
-
-        // ====================================================================
-        // GERAÇÃO DO SPRITESHEET
-        // ====================================================================
-        // Usamos o SpriteGenerator para criar o spritesheet programaticamente
-        // Em um jogo real, você carregaria um arquivo PNG
-
-        const generator = new SpriteGenerator();
-        const spritesheetDataUrl = generator.generateSpritesheet();
-
-        // ====================================================================
-        // CARREGAMENTO DO SPRITESHEET
-        // ====================================================================
-        // Carrega a imagem gerada como um spritesheet
-        //
-        // Parâmetros importantes:
-        // - frameWidth/frameHeight: Tamanho de cada frame individual
-        // - O Phaser automaticamente divide a imagem em frames baseado nessas dimensões
-
-        this.load.spritesheet('player', spritesheetDataUrl, {
-            frameWidth: 32,   // Largura de cada frame
-            frameHeight: 32,  // Altura de cada frame
-        });
-
         // ====================================================================
         // CARREGAMENTO DE TILES PARA O CENÁRIO
         // ====================================================================
         // Geramos tiles simples para o chão
-
         this.generateGroundTiles();
 
-        // Remove o texto de carregamento quando terminar
-        this.load.on('complete', () => {
-            loadingText.destroy();
+        // ====================================================================
+        // GERAÇÃO DO SPRITESHEET DO PERSONAGEM
+        // ====================================================================
+        // Usamos o SpriteGenerator para criar o spritesheet programaticamente
+        // Em um jogo real, você carregaria um arquivo PNG
+        //
+        // IMPORTANTE: Usamos textures.addSpriteSheet() ao invés de load.spritesheet()
+        // porque data URIs não são suportados pelo loader do Phaser via CDN.
+        // Esta é uma alternativa que funciona perfeitamente para spritesheets
+        // gerados programaticamente via canvas.
+
+        this.generatePlayerSpritesheet();
+    }
+
+    /**
+     * Gera o spritesheet do personagem usando canvas
+     *
+     * NOTA: Este método usa textures.addSpriteSheet() que aceita
+     * um canvas diretamente, evitando problemas com data URIs
+     */
+    generatePlayerSpritesheet() {
+        const generator = new SpriteGenerator();
+
+        // Cria o canvas com o spritesheet
+        const canvas = document.createElement('canvas');
+        canvas.width = 32 * 6;   // 6 frames por linha
+        canvas.height = 32 * 12; // 12 linhas de animação
+        const ctx = canvas.getContext('2d');
+
+        // Gera cada frame do spritesheet
+        this.generateAllFrames(ctx, generator);
+
+        // ====================================================================
+        // ADICIONANDO SPRITESHEET AO PHASER
+        // ====================================================================
+        // textures.addSpriteSheet() permite criar um spritesheet
+        // diretamente de um canvas HTML5
+        //
+        // Parâmetros:
+        // - 'player': key/nome da textura
+        // - canvas: elemento canvas com a imagem
+        // - { frameWidth, frameHeight }: dimensões de cada frame
+
+        this.textures.addSpriteSheet('player', canvas, {
+            frameWidth: 32,
+            frameHeight: 32
+        });
+
+        console.log('✅ Spritesheet do personagem gerado com sucesso!');
+    }
+
+    /**
+     * Gera todos os frames de animação no canvas
+     */
+    generateAllFrames(ctx, generator) {
+        const frameWidth = 32;
+        const frameHeight = 32;
+        const framesPerRow = 6;
+
+        // Configuração das animações
+        const animations = [
+            // IDLE (4 frames cada, linhas 0-3)
+            { row: 0, direction: 'down', action: 'idle', frames: 4 },
+            { row: 1, direction: 'left', action: 'idle', frames: 4 },
+            { row: 2, direction: 'right', action: 'idle', frames: 4 },
+            { row: 3, direction: 'up', action: 'idle', frames: 4 },
+            // WALK (6 frames cada, linhas 4-7)
+            { row: 4, direction: 'down', action: 'walk', frames: 6 },
+            { row: 5, direction: 'left', action: 'walk', frames: 6 },
+            { row: 6, direction: 'right', action: 'walk', frames: 6 },
+            { row: 7, direction: 'up', action: 'walk', frames: 6 },
+            // RUN (6 frames cada, linhas 8-11)
+            { row: 8, direction: 'down', action: 'run', frames: 6 },
+            { row: 9, direction: 'left', action: 'run', frames: 6 },
+            { row: 10, direction: 'right', action: 'run', frames: 6 },
+            { row: 11, direction: 'up', action: 'run', frames: 6 },
+        ];
+
+        // Gera cada frame
+        animations.forEach(anim => {
+            for (let frame = 0; frame < anim.frames; frame++) {
+                const x = frame * frameWidth;
+                const y = anim.row * frameHeight;
+
+                // Calcula offset de animação
+                let offsetY = 0;
+                if (anim.action === 'idle') {
+                    offsetY = (frame === 1 || frame === 3) ? -1 : 0;
+                } else if (anim.action === 'walk') {
+                    offsetY = (frame === 0 || frame === 3) ? 0 : -1;
+                } else if (anim.action === 'run') {
+                    offsetY = (frame === 0 || frame === 3) ? 0 : -2;
+                }
+
+                generator.drawCharacter(ctx, x, y, anim.direction, anim.action, frame, offsetY);
+            }
         });
     }
 
