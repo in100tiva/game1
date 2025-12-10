@@ -1,0 +1,360 @@
+/**
+ * ============================================================================
+ * GAME SCENE - Cena Principal do Jogo
+ * ============================================================================
+ *
+ * Esta é a cena principal onde o jogo acontece.
+ *
+ * CICLO DE VIDA DE UMA CENA PHASER:
+ * ---------------------------------
+ *
+ * 1. init()      - Inicialização (recebe dados de outras cenas)
+ * 2. preload()   - Carrega assets (imagens, sons, spritesheets)
+ * 3. create()    - Cria objetos do jogo (sprites, textos, física)
+ * 4. update()    - Loop principal (chamado ~60x por segundo)
+ *
+ * CONCEITOS IMPORTANTES:
+ * ----------------------
+ *
+ * SPRITESHEET vs SPRITE:
+ * - Sprite: Uma única imagem
+ * - Spritesheet: Várias imagens em uma única textura (otimizado)
+ *
+ * FRAME RATE vs GAME LOOP:
+ * - O update() roda a ~60fps
+ * - A animação tem seu próprio frameRate (ex: 8fps para walk)
+ * - Isso significa que o jogo atualiza ~60x/seg, mas a animação
+ *   troca de frame apenas 8x/seg
+ */
+
+class GameScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'GameScene' });
+
+        // Referências que serão criadas
+        this.player = null;
+        this.cursors = null;
+        this.wasd = null;
+        this.shiftKey = null;
+        this.debugText = null;
+    }
+
+    /**
+     * ========================================================================
+     * PRELOAD - Carregamento de Assets
+     * ========================================================================
+     *
+     * Aqui carregamos todos os assets necessários antes do jogo começar.
+     *
+     * TIPOS DE CARREGAMENTO:
+     * ----------------------
+     * - this.load.image('key', 'path')         - Imagem simples
+     * - this.load.spritesheet('key', 'path', { - Spritesheet
+     *     frameWidth: 32,
+     *     frameHeight: 32
+     *   })
+     * - this.load.audio('key', 'path')         - Áudio
+     * - this.load.tilemapTiledJSON('key', 'path') - Tilemap
+     */
+    preload() {
+        // Exibe mensagem de carregamento
+        const loadingText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            'Gerando sprites...',
+            { fontSize: '20px', color: '#4ecca3' }
+        );
+        loadingText.setOrigin(0.5);
+
+        // ====================================================================
+        // GERAÇÃO DO SPRITESHEET
+        // ====================================================================
+        // Usamos o SpriteGenerator para criar o spritesheet programaticamente
+        // Em um jogo real, você carregaria um arquivo PNG
+
+        const generator = new SpriteGenerator();
+        const spritesheetDataUrl = generator.generateSpritesheet();
+
+        // ====================================================================
+        // CARREGAMENTO DO SPRITESHEET
+        // ====================================================================
+        // Carrega a imagem gerada como um spritesheet
+        //
+        // Parâmetros importantes:
+        // - frameWidth/frameHeight: Tamanho de cada frame individual
+        // - O Phaser automaticamente divide a imagem em frames baseado nessas dimensões
+
+        this.load.spritesheet('player', spritesheetDataUrl, {
+            frameWidth: 32,   // Largura de cada frame
+            frameHeight: 32,  // Altura de cada frame
+        });
+
+        // ====================================================================
+        // CARREGAMENTO DE TILES PARA O CENÁRIO
+        // ====================================================================
+        // Geramos tiles simples para o chão
+
+        this.generateGroundTiles();
+
+        // Remove o texto de carregamento quando terminar
+        this.load.on('complete', () => {
+            loadingText.destroy();
+        });
+    }
+
+    /**
+     * Gera tiles simples para o chão do cenário
+     */
+    generateGroundTiles() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+
+        // Tile de grama
+        ctx.fillStyle = '#4a7c59';  // Verde escuro
+        ctx.fillRect(0, 0, 32, 32);
+
+        // Adiciona variação de cor (textura de grama)
+        ctx.fillStyle = '#5a8c69';  // Verde mais claro
+        for (let i = 0; i < 20; i++) {
+            const x = Math.random() * 30;
+            const y = Math.random() * 30;
+            ctx.fillRect(x, y, 2, 2);
+        }
+
+        // Algumas folhinhas
+        ctx.fillStyle = '#3a6c49';  // Verde mais escuro
+        for (let i = 0; i < 10; i++) {
+            const x = Math.random() * 28;
+            const y = Math.random() * 28;
+            ctx.fillRect(x, y, 3, 1);
+        }
+
+        this.textures.addCanvas('grass', canvas);
+    }
+
+    /**
+     * ========================================================================
+     * CREATE - Criação dos Objetos do Jogo
+     * ========================================================================
+     *
+     * Aqui criamos todos os objetos que aparecerão no jogo.
+     */
+    create() {
+        console.log('🎮 GameScene iniciada!');
+
+        // ====================================================================
+        // CONFIGURAÇÃO DO MUNDO
+        // ====================================================================
+        this.physics.world.setBounds(0, 0, 800, 600);
+
+        // ====================================================================
+        // CRIAÇÃO DO CENÁRIO
+        // ====================================================================
+        this.createBackground();
+
+        // ====================================================================
+        // CRIAÇÃO DO JOGADOR
+        // ====================================================================
+        // O jogador é criado no centro da tela
+        this.player = new Player(this, 400, 300);
+
+        // ====================================================================
+        // CONFIGURAÇÃO DOS CONTROLES
+        // ====================================================================
+        this.setupControls();
+
+        // ====================================================================
+        // INTERFACE DE DEBUG
+        // ====================================================================
+        this.createDebugUI();
+
+        // ====================================================================
+        // INSTRUÇÕES NA TELA
+        // ====================================================================
+        this.createInstructions();
+
+        console.log('✅ Todos os elementos criados!');
+    }
+
+    /**
+     * Cria o fundo do cenário
+     */
+    createBackground() {
+        // Preenche o fundo com tiles de grama
+        for (let x = 0; x < 800; x += 32) {
+            for (let y = 0; y < 600; y += 32) {
+                const tile = this.add.image(x, y, 'grass');
+                tile.setOrigin(0);
+
+                // Adiciona leve variação de tom para quebrar a repetição
+                tile.setTint(Phaser.Display.Color.GetColor(
+                    70 + Math.random() * 20,
+                    130 + Math.random() * 20,
+                    90 + Math.random() * 20
+                ));
+            }
+        }
+
+        // Adiciona algumas decorações simples (círculos representando arbustos)
+        this.createDecorations();
+    }
+
+    /**
+     * Adiciona decorações ao cenário
+     */
+    createDecorations() {
+        const graphics = this.add.graphics();
+
+        // Cria alguns "arbustos" decorativos
+        const bushPositions = [
+            { x: 100, y: 150 },
+            { x: 700, y: 100 },
+            { x: 650, y: 450 },
+            { x: 80, y: 500 },
+            { x: 200, y: 350 },
+            { x: 550, y: 250 },
+        ];
+
+        bushPositions.forEach(pos => {
+            // Sombra
+            graphics.fillStyle(0x2a5c39, 0.5);
+            graphics.fillCircle(pos.x + 2, pos.y + 2, 15);
+
+            // Arbusto
+            graphics.fillStyle(0x3d8c4f, 1);
+            graphics.fillCircle(pos.x, pos.y, 15);
+
+            // Destaque
+            graphics.fillStyle(0x5aac6f, 1);
+            graphics.fillCircle(pos.x - 3, pos.y - 3, 6);
+        });
+
+        // Cria alguns caminhos de terra
+        graphics.fillStyle(0x8b7355, 1);
+        graphics.fillRect(350, 0, 100, 600);  // Caminho vertical
+        graphics.fillRect(0, 280, 800, 40);   // Caminho horizontal
+
+        // Textura do caminho
+        graphics.fillStyle(0x9b8365, 1);
+        for (let i = 0; i < 50; i++) {
+            graphics.fillRect(
+                350 + Math.random() * 100,
+                Math.random() * 600,
+                3, 3
+            );
+            graphics.fillRect(
+                Math.random() * 800,
+                280 + Math.random() * 40,
+                3, 3
+            );
+        }
+    }
+
+    /**
+     * ========================================================================
+     * CONFIGURAÇÃO DOS CONTROLES
+     * ========================================================================
+     *
+     * O Phaser oferece várias formas de capturar input do teclado:
+     *
+     * 1. createCursorKeys() - Cria objeto com setas + espaço + shift
+     * 2. addKey() - Adiciona uma tecla específica
+     * 3. addKeys() - Adiciona múltiplas teclas de uma vez
+     */
+    setupControls() {
+        // Teclas direcionais (setas)
+        this.cursors = this.input.keyboard.createCursorKeys();
+
+        // Teclas WASD
+        this.wasd = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+        };
+
+        // Tecla Shift (para correr)
+        this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
+        console.log('🎮 Controles configurados: Setas/WASD + Shift para correr');
+    }
+
+    /**
+     * Cria a interface de debug que mostra informações do personagem
+     */
+    createDebugUI() {
+        // Fundo semi-transparente para o debug
+        const debugBg = this.add.rectangle(10, 10, 200, 100, 0x000000, 0.7);
+        debugBg.setOrigin(0);
+
+        // Texto de debug
+        this.debugText = this.add.text(15, 15, '', {
+            fontSize: '12px',
+            fontFamily: 'Courier New',
+            color: '#4ecca3',
+            lineSpacing: 4
+        });
+
+        // Atualiza o debug a cada 100ms para não sobrecarregar
+        this.time.addEvent({
+            delay: 100,
+            callback: this.updateDebugText,
+            callbackScope: this,
+            loop: true
+        });
+    }
+
+    /**
+     * Atualiza o texto de debug
+     */
+    updateDebugText() {
+        if (!this.player || !this.debugText) return;
+
+        const info = this.player.getInfo();
+        this.debugText.setText([
+            `Estado: ${info.state}`,
+            `Direção: ${info.direction}`,
+            `Animação: ${info.currentAnimation}`,
+            `Posição: (${Math.round(info.position.x)}, ${Math.round(info.position.y)})`,
+            `Velocidade: (${Math.round(info.velocity.x)}, ${Math.round(info.velocity.y)})`
+        ]);
+    }
+
+    /**
+     * Cria instruções na tela
+     */
+    createInstructions() {
+        const style = {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            backgroundColor: '#00000088',
+            padding: { x: 10, y: 5 }
+        };
+
+        this.add.text(790, 10, 'SHIFT = Correr', style).setOrigin(1, 0);
+    }
+
+    /**
+     * ========================================================================
+     * UPDATE - Loop Principal do Jogo
+     * ========================================================================
+     *
+     * Este método é chamado a cada frame (~60 vezes por segundo).
+     * Aqui processamos inputs, atualizamos posições e verificamos colisões.
+     *
+     * @param {number} time - Tempo total desde o início do jogo
+     * @param {number} delta - Tempo desde o último frame (em ms)
+     */
+    update(time, delta) {
+        // Atualiza o jogador (processa movimento e animações)
+        if (this.player) {
+            this.player.update(this.cursors, this.wasd, this.shiftKey);
+        }
+    }
+}
+
+// Exporta a classe para uso global
+window.GameScene = GameScene;

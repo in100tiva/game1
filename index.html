@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Pixel Art - Animações de Personagem</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            color: #eee;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #4ecca3;
+            text-shadow: 2px 2px 0 #232931;
+        }
+
+        #game-container {
+            border: 4px solid #4ecca3;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(78, 204, 163, 0.3);
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+            background: #232931;
+            padding: 15px 25px;
+            border-radius: 8px;
+        }
+
+        .controls h3 {
+            color: #4ecca3;
+            margin-bottom: 10px;
+        }
+
+        .controls p {
+            margin: 5px 0;
+            color: #ccc;
+        }
+
+        kbd {
+            background: #4ecca3;
+            color: #1a1a2e;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .animation-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: #16213e;
+            border-radius: 8px;
+            max-width: 600px;
+        }
+
+        .animation-info h4 {
+            color: #4ecca3;
+            margin-bottom: 8px;
+        }
+
+        .animation-info code {
+            background: #232931;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #f39c12;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 RPG Pixel Art - Animações</h1>
+
+    <div id="game-container"></div>
+
+    <div class="controls">
+        <h3>Controles</h3>
+        <p><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> - Movimento</p>
+        <p><kbd>SHIFT</kbd> + Direção - Correr</p>
+    </div>
+
+    <div class="animation-info">
+        <h4>📝 Sobre as Animações</h4>
+        <p>Este exemplo demonstra:</p>
+        <ul>
+            <li>Animações de <code>idle</code> (parado) em 4 direções</li>
+            <li>Animações de <code>walk</code> (andar) em 4 direções</li>
+            <li>Animações de <code>run</code> (correr) em 4 direções</li>
+            <li>Transições suaves entre estados</li>
+        </ul>
+    </div>
+
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+    <!-- Arquivos do Jogo -->
+    <script src="src/SpriteGenerator.js"></script>
+    <script src="src/Player.js"></script>
+    <script src="src/GameScene.js"></script>
+    <script src="src/main.js"></script>
+</body>
+</html>
