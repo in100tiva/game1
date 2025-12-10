@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Spritesheet - RPG Pixel Art</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', sans-serif;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #4ecca3;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        .panel {
+            background: #232931;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            color: #4ecca3;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 1px solid #4ecca3;
+            padding-bottom: 10px;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed #4ecca3;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            background: rgba(78, 204, 163, 0.1);
+        }
+
+        .upload-area.dragover {
+            background: rgba(78, 204, 163, 0.2);
+            border-color: #fff;
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        /* Spritesheet Preview */
+        .spritesheet-container {
+            overflow: auto;
+            max-height: 500px;
+            background: #16213e;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        #spritesheet-canvas {
+            display: block;
+            image-rendering: pixelated;
+            cursor: crosshair;
+        }
+
+        /* Frame Config */
+        .config-group {
+            margin-bottom: 15px;
+        }
+
+        .config-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .config-group input, .config-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #4ecca3;
+            border-radius: 5px;
+            background: #16213e;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .config-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Animation Config */
+        .animation-item {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .animation-item h4 {
+            color: #4ecca3;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .animation-item .badge {
+            background: #4ecca3;
+            color: #1a1a2e;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        /* Preview */
+        .preview-container {
+            text-align: center;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 8px;
+        }
+
+        #preview-canvas {
+            image-rendering: pixelated;
+            border: 2px solid #4ecca3;
+            background: #2d4a3e;
+        }
+
+        .preview-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .preview-controls button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .preview-controls button.active {
+            background: #4ecca3;
+            color: #1a1a2e;
+        }
+
+        .preview-controls button:not(.active) {
+            background: #3d4f5f;
+            color: #fff;
+        }
+
+        .preview-controls button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: #4ecca3;
+            color: #1a1a2e;
+        }
+
+        .btn-secondary {
+            background: #3d4f5f;
+            color: #fff;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 204, 163, 0.3);
+        }
+
+        /* Info */
+        .info-box {
+            background: rgba(78, 204, 163, 0.1);
+            border-left: 3px solid #4ecca3;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        /* Selection overlay */
+        .frame-selection {
+            position: absolute;
+            border: 2px solid #ff6b6b;
+            background: rgba(255, 107, 107, 0.2);
+            pointer-events: none;
+        }
+
+        /* Animation mapping table */
+        .mapping-table {
+            width: 100%;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .mapping-table th, .mapping-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #3d4f5f;
+        }
+
+        .mapping-table th {
+            color: #4ecca3;
+        }
+
+        .mapping-table input {
+            width: 50px;
+            padding: 5px;
+            background: #232931;
+            border: 1px solid #4ecca3;
+            color: #fff;
+            border-radius: 3px;
+        }
+
+        .row-highlight {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: rgba(78, 204, 163, 0.2);
+            border-top: 1px solid #4ecca3;
+            border-bottom: 1px solid #4ecca3;
+            pointer-events: none;
+        }
+
+        /* Status */
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .status.success {
+            background: rgba(78, 204, 163, 0.2);
+            color: #4ecca3;
+        }
+
+        .status.error {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #16213e;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: #4ecca3;
+            color: #1a1a2e;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Grid overlay */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Editor de Spritesheet</h1>
+
+    <div class="container">
+        <!-- Left Panel - Spritesheet -->
+        <div class="panel">
+            <h2>📁 Spritesheet</h2>
+
+            <div class="upload-area" id="upload-area">
+                <input type="file" id="file-input" accept="image/*">
+                <p>📤 Arraste uma imagem aqui ou clique para selecionar</p>
+                <p style="font-size: 12px; color: #888; margin-top: 10px;">Suporta PNG, JPG, GIF</p>
+            </div>
+
+            <div class="config-row">
+                <div class="config-group">
+                    <label>Largura do Frame (px)</label>
+                    <input type="number" id="frame-width" value="32" min="8" max="256">
+                </div>
+                <div class="config-group">
+                    <label>Altura do Frame (px)</label>
+                    <input type="number" id="frame-height" value="32" min="8" max="256">
+                </div>
+            </div>
+
+            <div class="config-group">
+                <label>Zoom</label>
+                <input type="range" id="zoom" min="1" max="8" value="3">
+                <span id="zoom-value">3x</span>
+            </div>
+
+            <div class="spritesheet-container" id="spritesheet-container">
+                <canvas id="spritesheet-canvas"></canvas>
+                <canvas class="grid-overlay" id="grid-overlay"></canvas>
+            </div>
+
+            <div class="info-box" id="sprite-info">
+                Carregue uma imagem para começar
+            </div>
+        </div>
+
+        <!-- Right Panel - Configuration -->
+        <div class="panel">
+            <h2>⚙️ Configuração de Animações</h2>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="mapping">Mapeamento</button>
+                <button class="tab" data-tab="preview">Preview</button>
+            </div>
+
+            <!-- Mapping Tab -->
+            <div class="tab-content active" id="tab-mapping">
+                <div class="info-box">
+                    Configure qual linha do spritesheet corresponde a cada animação.
+                    Clique em uma linha na imagem para selecioná-la rapidamente.
+                </div>
+
+                <div class="animation-list" id="animation-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Preview Tab -->
+            <div class="tab-content" id="tab-preview">
+                <div class="preview-container">
+                    <canvas id="preview-canvas" width="96" height="96"></canvas>
+
+                    <div class="preview-controls" id="action-buttons">
+                        <button class="active" data-action="idle">Idle</button>
+                        <button data-action="walk">Walk</button>
+                        <button data-action="run">Run</button>
+                    </div>
+
+                    <div class="preview-controls" id="direction-buttons">
+                        <button data-direction="up">↑</button>
+                        <button class="active" data-direction="down">↓</button>
+                        <button data-direction="left">←</button>
+                        <button data-direction="right">→</button>
+                    </div>
+
+                    <div class="config-group" style="margin-top: 15px;">
+                        <label>Velocidade (FPS)</label>
+                        <input type="range" id="preview-fps" min="1" max="24" value="8">
+                        <span id="fps-value">8 FPS</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="save-config">
+                💾 Salvar e Usar no Jogo
+            </button>
+
+            <button class="btn btn-secondary" id="export-config">
+                📋 Exportar Configuração (JSON)
+            </button>
+
+            <button class="btn btn-secondary" onclick="window.location.href='index.html'">
+                🎮 Ir para o Jogo
+            </button>
+
+            <div class="status" id="status" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script src="src/SpriteEditorConfig.js"></script>
+    <script src="src/SpriteEditor.js"></script>
+</body>
+</html>
