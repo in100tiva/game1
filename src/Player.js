@@ -39,9 +39,11 @@ class Player {
      * @param {Phaser.Scene} scene - Referência à cena do Phaser
      * @param {number} x - Posição inicial X
      * @param {number} y - Posição inicial Y
+     * @param {Object} spriteConfig - Configuração do spritesheet (opcional)
      */
-    constructor(scene, x, y) {
+    constructor(scene, x, y, spriteConfig = null) {
         this.scene = scene;
+        this.spriteConfig = spriteConfig;
 
         // ====================================================================
         // CONFIGURAÇÕES DE MOVIMENTO
@@ -65,9 +67,11 @@ class Player {
         // Configura o sprite
         this.sprite.setScale(2);  // Escala 2x para melhor visualização do pixel art
 
-        // Configura a física do corpo
-        this.sprite.body.setSize(16, 16);      // Hitbox menor que o sprite
-        this.sprite.body.setOffset(8, 16);     // Centraliza a hitbox nos pés
+        // Configura a física do corpo baseada no tamanho do frame
+        const fw = spriteConfig?.frameWidth || 32;
+        const fh = spriteConfig?.frameHeight || 32;
+        this.sprite.body.setSize(fw / 2, fh / 2);
+        this.sprite.body.setOffset(fw / 4, fh / 2);
 
         // Evita que o personagem saia dos limites do mundo
         this.sprite.setCollideWorldBounds(true);
@@ -112,78 +116,81 @@ class Player {
      * Fórmula: frameInicial = linha * framesPerRow
      */
     createAnimations() {
-        const framesPerRow = 6;  // Número de frames por linha no spritesheet
-
         // ====================================================================
-        // ANIMAÇÕES IDLE (PARADO)
+        // CRIAÇÃO DINÂMICA DE ANIMAÇÕES
         // ====================================================================
-        // Frame rate baixo (4 fps) para animação suave de respiração
-        // Usa apenas 4 frames (0-3) de cada linha
+        // Se temos uma configuração customizada, usa ela
+        // Senão, usa os valores padrão
 
-        const idleConfig = {
-            frameRate: 4,
-            repeat: -1
-        };
-
-        // Idle Down (Linha 0)
-        this.createAnimation('idle-down', 0, 3, idleConfig);
-
-        // Idle Left (Linha 1)
-        this.createAnimation('idle-left', 6, 9, idleConfig);
-
-        // Idle Right (Linha 2)
-        this.createAnimation('idle-right', 12, 15, idleConfig);
-
-        // Idle Up (Linha 3)
-        this.createAnimation('idle-up', 18, 21, idleConfig);
-
-        // ====================================================================
-        // ANIMAÇÕES WALK (ANDAR)
-        // ====================================================================
-        // Frame rate médio (8 fps) para movimento de caminhada
-        // Usa 6 frames de cada linha
-
-        const walkConfig = {
-            frameRate: 8,
-            repeat: -1
-        };
-
-        // Walk Down (Linha 4)
-        this.createAnimation('walk-down', 24, 29, walkConfig);
-
-        // Walk Left (Linha 5)
-        this.createAnimation('walk-left', 30, 35, walkConfig);
-
-        // Walk Right (Linha 6)
-        this.createAnimation('walk-right', 36, 41, walkConfig);
-
-        // Walk Up (Linha 7)
-        this.createAnimation('walk-up', 42, 47, walkConfig);
-
-        // ====================================================================
-        // ANIMAÇÕES RUN (CORRER)
-        // ====================================================================
-        // Frame rate alto (12 fps) para movimento rápido de corrida
-        // Usa 6 frames de cada linha
-
-        const runConfig = {
-            frameRate: 12,
-            repeat: -1
-        };
-
-        // Run Down (Linha 8)
-        this.createAnimation('run-down', 48, 53, runConfig);
-
-        // Run Left (Linha 9)
-        this.createAnimation('run-left', 54, 59, runConfig);
-
-        // Run Right (Linha 10)
-        this.createAnimation('run-right', 60, 65, runConfig);
-
-        // Run Up (Linha 11)
-        this.createAnimation('run-up', 66, 71, runConfig);
+        if (this.spriteConfig && this.spriteConfig.animations) {
+            this.createAnimationsFromConfig();
+        } else {
+            this.createDefaultAnimations();
+        }
 
         console.log('✅ Todas as animações foram criadas com sucesso!');
+    }
+
+    /**
+     * Cria animações a partir da configuração do editor
+     * Isso permite usar qualquer spritesheet customizado!
+     */
+    createAnimationsFromConfig() {
+        const config = this.spriteConfig;
+
+        // Calcula quantos frames cabem em uma linha do spritesheet
+        // Isso é importante para calcular o índice correto dos frames
+        const texture = this.scene.textures.get('player');
+        const frameWidth = config.frameWidth;
+        const textureWidth = texture.source[0].width;
+        const framesPerRow = Math.floor(textureWidth / frameWidth);
+
+        console.log(`📊 Spritesheet: ${framesPerRow} frames por linha`);
+
+        // Cria cada animação definida na configuração
+        config.animations.forEach(anim => {
+            const key = `${anim.action}-${anim.direction}`;
+
+            // Calcula o frame inicial baseado na linha e coluna inicial
+            const startFrame = (anim.row * framesPerRow) + (anim.startFrame || 0);
+            const endFrame = startFrame + anim.frameCount - 1;
+
+            this.createAnimation(key, startFrame, endFrame, {
+                frameRate: anim.frameRate,
+                repeat: -1
+            });
+
+            console.log(`  🎬 ${key}: frames ${startFrame}-${endFrame} (linha ${anim.row})`);
+        });
+    }
+
+    /**
+     * Cria animações padrão (quando não há configuração customizada)
+     */
+    createDefaultAnimations() {
+        const framesPerRow = 6;  // Número de frames por linha no spritesheet
+
+        // IDLE (4 frames, 4 fps)
+        const idleConfig = { frameRate: 4, repeat: -1 };
+        this.createAnimation('idle-down', 0, 3, idleConfig);
+        this.createAnimation('idle-left', 6, 9, idleConfig);
+        this.createAnimation('idle-right', 12, 15, idleConfig);
+        this.createAnimation('idle-up', 18, 21, idleConfig);
+
+        // WALK (6 frames, 8 fps)
+        const walkConfig = { frameRate: 8, repeat: -1 };
+        this.createAnimation('walk-down', 24, 29, walkConfig);
+        this.createAnimation('walk-left', 30, 35, walkConfig);
+        this.createAnimation('walk-right', 36, 41, walkConfig);
+        this.createAnimation('walk-up', 42, 47, walkConfig);
+
+        // RUN (6 frames, 12 fps)
+        const runConfig = { frameRate: 12, repeat: -1 };
+        this.createAnimation('run-down', 48, 53, runConfig);
+        this.createAnimation('run-left', 54, 59, runConfig);
+        this.createAnimation('run-right', 60, 65, runConfig);
+        this.createAnimation('run-up', 66, 71, runConfig);
+
         this.logAnimationInfo();
     }
 

@@ -37,6 +37,10 @@ class GameScene extends Phaser.Scene {
         this.wasd = null;
         this.shiftKey = null;
         this.debugText = null;
+
+        // Configuração do spritesheet (carregada do editor ou padrão)
+        this.spriteConfig = null;
+        this.useCustomSprite = false;
     }
 
     /**
@@ -60,21 +64,91 @@ class GameScene extends Phaser.Scene {
         // ====================================================================
         // CARREGAMENTO DE TILES PARA O CENÁRIO
         // ====================================================================
-        // Geramos tiles simples para o chão
         this.generateGroundTiles();
 
         // ====================================================================
-        // GERAÇÃO DO SPRITESHEET DO PERSONAGEM
+        // VERIFICAR SPRITESHEET CUSTOMIZADO
         // ====================================================================
-        // Usamos o SpriteGenerator para criar o spritesheet programaticamente
-        // Em um jogo real, você carregaria um arquivo PNG
-        //
-        // IMPORTANTE: Usamos textures.addSpriteSheet() ao invés de load.spritesheet()
-        // porque data URIs não são suportados pelo loader do Phaser via CDN.
-        // Esta é uma alternativa que funciona perfeitamente para spritesheets
-        // gerados programaticamente via canvas.
+        // Verifica se existe um spritesheet salvo no editor
+        // Se existir, usa ele; senão, gera um programaticamente
 
-        this.generatePlayerSpritesheet();
+        this.loadSpriteConfig();
+
+        if (this.useCustomSprite) {
+            this.loadCustomSpritesheet();
+        } else {
+            this.generatePlayerSpritesheet();
+        }
+    }
+
+    /**
+     * Carrega a configuração do spritesheet do localStorage
+     */
+    loadSpriteConfig() {
+        try {
+            const savedConfig = localStorage.getItem('spritesheet_config');
+            const savedImage = localStorage.getItem('spritesheet_image');
+
+            if (savedConfig && savedImage) {
+                this.spriteConfig = JSON.parse(savedConfig);
+                this.useCustomSprite = true;
+                console.log('📦 Configuração customizada encontrada!');
+            } else {
+                // Usa configuração padrão
+                this.spriteConfig = {
+                    frameWidth: 32,
+                    frameHeight: 32,
+                    animations: [
+                        { action: 'idle', direction: 'down', row: 0, startFrame: 0, frameCount: 4, frameRate: 4 },
+                        { action: 'idle', direction: 'left', row: 1, startFrame: 0, frameCount: 4, frameRate: 4 },
+                        { action: 'idle', direction: 'right', row: 2, startFrame: 0, frameCount: 4, frameRate: 4 },
+                        { action: 'idle', direction: 'up', row: 3, startFrame: 0, frameCount: 4, frameRate: 4 },
+                        { action: 'walk', direction: 'down', row: 4, startFrame: 0, frameCount: 6, frameRate: 8 },
+                        { action: 'walk', direction: 'left', row: 5, startFrame: 0, frameCount: 6, frameRate: 8 },
+                        { action: 'walk', direction: 'right', row: 6, startFrame: 0, frameCount: 6, frameRate: 8 },
+                        { action: 'walk', direction: 'up', row: 7, startFrame: 0, frameCount: 6, frameRate: 8 },
+                        { action: 'run', direction: 'down', row: 8, startFrame: 0, frameCount: 6, frameRate: 12 },
+                        { action: 'run', direction: 'left', row: 9, startFrame: 0, frameCount: 6, frameRate: 12 },
+                        { action: 'run', direction: 'right', row: 10, startFrame: 0, frameCount: 6, frameRate: 12 },
+                        { action: 'run', direction: 'up', row: 11, startFrame: 0, frameCount: 6, frameRate: 12 },
+                    ]
+                };
+                this.useCustomSprite = false;
+                console.log('🎨 Usando spritesheet gerado');
+            }
+        } catch (e) {
+            console.error('Erro ao carregar configuração:', e);
+            this.useCustomSprite = false;
+        }
+    }
+
+    /**
+     * Carrega o spritesheet customizado do localStorage
+     */
+    loadCustomSpritesheet() {
+        const savedImage = localStorage.getItem('spritesheet_image');
+
+        // Cria uma imagem a partir do data URL salvo
+        const img = new Image();
+        img.src = savedImage;
+
+        // Quando a imagem carregar, adiciona ao Phaser
+        img.onload = () => {
+            // Cria um canvas temporário para a imagem
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            // Adiciona ao Phaser como spritesheet
+            this.textures.addSpriteSheet('player', canvas, {
+                frameWidth: this.spriteConfig.frameWidth,
+                frameHeight: this.spriteConfig.frameHeight
+            });
+
+            console.log(`✅ Spritesheet customizado carregado: ${img.width}x${img.height}`);
+        };
     }
 
     /**
@@ -218,7 +292,8 @@ class GameScene extends Phaser.Scene {
         // CRIAÇÃO DO JOGADOR
         // ====================================================================
         // O jogador é criado no centro da tela
-        this.player = new Player(this, 400, 300);
+        // Passa a configuração do spritesheet para criar as animações corretas
+        this.player = new Player(this, 400, 300, this.spriteConfig);
 
         // ====================================================================
         // CONFIGURAÇÃO DOS CONTROLES

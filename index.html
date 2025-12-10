@@ -104,6 +104,39 @@
         </ul>
     </div>
 
+    <div class="controls" style="margin-top: 15px;">
+        <h3>🎨 Personalize seu Personagem</h3>
+        <p>Use o editor para carregar seu próprio spritesheet!</p>
+        <div style="margin-top: 10px; display: flex; gap: 10px; justify-content: center;">
+            <a href="editor.html" style="
+                background: #4ecca3;
+                color: #1a1a2e;
+                padding: 10px 20px;
+                border-radius: 5px;
+                text-decoration: none;
+                font-weight: bold;
+            ">🖼️ Abrir Editor</a>
+            <button onclick="resetSprite()" style="
+                background: #e74c3c;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                border: none;
+                cursor: pointer;
+                font-weight: bold;
+            ">🔄 Resetar Sprite</button>
+        </div>
+    </div>
+
+    <script>
+        function resetSprite() {
+            localStorage.removeItem('spritesheet_config');
+            localStorage.removeItem('spritesheet_image');
+            alert('Sprite resetado! Recarregue a página.');
+            location.reload();
+        }
+    </script>
+
     <!-- Phaser 3 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 
